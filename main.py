@@ -234,7 +234,7 @@ def main():
     print("Entropy L2: ", entropy_l2)
 
 if __name__ == "__main__":
-    print('=====NEW RUN OF LORXUS\'S ADAPTATION OF DAVID LORELL\'S GMM CLUSTERER; NEW PRINTOUT STARTS HERE=====')
+    print('=====NEW RUN OF LORXUS\'S ADAPTATION OF DAVID LORELL\'S GMM CLUSTERER COMPARATOR; NEW PRINTOUT STARTS HERE=====')
     full_axes = list(range(12))  # makes the list of the 12 ways a single axis might be dropped
     # print(full_axes)
     dropped_axis_list = []
