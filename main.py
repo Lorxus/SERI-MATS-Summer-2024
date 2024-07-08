@@ -48,7 +48,7 @@ def visualize(data, y, y_hat):
 
 # I am like 93% sure that this is the part where they check the redundancy condition
 def check_epsilons(gmm, n_samples, axes_to_keep, n_clusters):
-    print(n_samples, axes_to_keep)
+    # print(n_samples, axes_to_keep)
     data, labels = gmm.sample(n_samples)
     data_castrated = data[:, axes_to_keep]
     # print(np.shape(data), np.shape(data_castrated))
@@ -61,11 +61,10 @@ def check_epsilons(gmm, n_samples, axes_to_keep, n_clusters):
     gmm_castrated.precisions_cholesky_ = jnp.sqrt(1 / gmm_castrated.covariances_)
     gmm_castrated.converged = True
 
-    # possibly my dataset is too high-D
-    # such that these following two are getting zeroed
-    # when we calculate gmm.predict_proba(stuff)?
     p_L_X = gmm.predict_proba(data)
     p_L_Xs = gmm_castrated.predict_proba(data_castrated)
+    # print('p_L_X', p_L_X)
+    # print('p_L_Xs', p_L_Xs)
 
     # find problem
     # go line by line, ask myself what literally each line of code does and why
@@ -79,19 +78,27 @@ def check_epsilons(gmm, n_samples, axes_to_keep, n_clusters):
     
     # print("X:", p_L_X, type(p_L_X))
     # print("S:", p_L_Xs, type(p_L_Xs))
-    edkl = np.einsum("xl,xl->x", p_L_X, (np.log(p_L_X) - np.log(p_L_Xs))).mean()
+
+    p_L_X[p_L_X < 1e-199] = 1e-199
+    p_L_Xs[p_L_Xs < 1e-199] = 1e-199
+    # need these to avoid catastrophic NaNs later comparing [0, eps, 1-eps*] to [0, 0, 1] because * rounds to 1.
+
+    logdiffs = np.array(np.log(p_L_X) - np.log(p_L_Xs))
+
+    edkl = np.einsum("xl,xl->x", p_L_X, logdiffs).mean()
+    # the problem here has to do with the program detecting [0 0 1]-ish things in p_L_X, p_L_Xs.
+    # the agreement value between [0 0 1] and [0 0 1] should be 1, not NaN!
 
     edkl = edkl / jnp.log(2)
 
     if edkl > 50:
-        print("woe unto all")
+        print('wow this is real bad')
 
     print("E_x[Dkl(P[(L|X) || (L|Xs)])] = ", edkl)
 
     return edkl
 
 def main():
-
     n_gmm_components = 3
     # original was 3 (species of flower); NCEI divides weather stations ~geographically into 6, ultimately I ended up using Kepler Objects instead which... class into Candidates, Confirmeds, and False Positives. F.
     covariance_type = 'diag'
@@ -150,7 +157,6 @@ def main():
     data = data_df[[c for c in data_df.columns[:-1]]].to_numpy(dtype=np.float32)
     y = data_df['kepler_status'].map({"CONFIRMED": 0, "CANDIDATE": 1, "FALSE POSITIVE": 2}).values
 
-
     # print(data_df[data_df.isna().any(axis=1)])
     # print(data_df.loc[data_df.isna()])
 
@@ -168,7 +174,7 @@ def main():
     for axes_to_keep in dropped_axis_list:
         print(axes_to_keep)
         check_epsilons(gmm, n_samples=len(data), axes_to_keep=axes_to_keep, n_clusters=n_gmm_components)
-        assert False
+        # assert False
         
 
     redundancy_error = 0
@@ -228,7 +234,7 @@ def main():
     print("Entropy L2: ", entropy_l2)
 
 if __name__ == "__main__":
-    print('=====NEW RUN OF THIS WEIRD BROKEN PROGRAM; NEW PRINTOUT STARTS HERE=====')
+    print('=====NEW RUN OF LORXUS\'S ADAPTATION OF DAVID LORELL\'S GMM CLUSTERER; NEW PRINTOUT STARTS HERE=====')
     full_axes = list(range(12))  # makes the list of the 12 ways a single axis might be dropped
     # print(full_axes)
     dropped_axis_list = []
